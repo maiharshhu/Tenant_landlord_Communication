@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Optional: CSS-first theming (Tailwind v4) */
+@theme {
+  --font-sans: Inter, system-ui, Avenir, Helvetica, Arial, "Segoe UI",
+    sans-serif;
+
+  /* Keep our primary similar to your blue buttons */
+  --color-primary-600: #2563eb; /* blue-600 */
+  --color-primary-700: #1d4ed8;
+}
+
+/* Global defaults */
+:root {
+  color-scheme: light;
+  font-synthesis-weight: none;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #f9fafb; /* gray-50 */
+  color: #111827; /* gray-900 */
+}
+
+/* Example: opt-in utility via @apply if you like */
+.btn-primary {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-xl shadow text-sm font-medium transition
+    hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed;
+  background: var(--color-primary-600);
+  color: white;
+}
