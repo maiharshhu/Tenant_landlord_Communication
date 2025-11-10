@@ -11,7 +11,6 @@ export default function Header() {
   const { t } = useI18n();
   const { toasts, dismiss } = useNotifications();
 
-  // Safe display name fallback
   const displayName =
     user?.displayName?.trim() ||
     (user?.email ? user.email.split("@")[0] : "User");
@@ -22,12 +21,10 @@ export default function Header() {
   return (
     <header className="border-b bg-white">
       <div className="max-w-6xl mx-auto flex items-center justify-between p-4 gap-3">
-        {/* Brand */}
         <Link to="/" className="font-bold text-xl">
           🏢 Tenant-Landlord
         </Link>
 
-        {/* Center nav */}
         <nav className="hidden md:flex items-center gap-2">
           {user && (
             <NavLink
@@ -56,16 +53,14 @@ export default function Header() {
               >
                 Payments
               </NavLink>
-              {/* 👇 Console link removed */}
+              {/* Console link removed */}
             </>
           )}
         </nav>
 
-        {/* Right side: Name + Role + Auth + Lang */}
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              {/* Name + Role pill */}
               <div className="flex items-center gap-2 max-w-[55vw] md:max-w-none">
                 <span className="truncate font-medium">{displayName}</span>
                 {roleLabel && (
@@ -74,14 +69,12 @@ export default function Header() {
                   </span>
                 )}
               </div>
-
               <NavLink
                 to="/tenant/profile"
                 className="hidden md:inline-block px-3 py-2 rounded hover:bg-gray-100"
               >
                 {t("profile")}
               </NavLink>
-
               <LanguageToggle />
               <Button onClick={logOut}>Logout</Button>
             </>
@@ -105,7 +98,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile nav (optional) */}
       <div className="md:hidden border-t bg-white">
         <div className="max-w-6xl mx-auto flex items-center gap-2 p-2">
           {user && (
@@ -143,7 +135,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Toast notifications */}
       {toasts.map((n) => (
         <Toast
           key={n.id}

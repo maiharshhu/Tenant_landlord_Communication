@@ -1,6 +1,5 @@
-import {
-    ref, get, set, push, update, serverTimestamp,
-} from "firebase/database";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore"; // (optional if you notify)
+import { ref, get, set, push, update, serverTimestamp as rtdbTs } from "firebase/database";
 
 /**
  * Find existing thread between uidA & uidB using /userThreads/{uidA}
@@ -15,28 +14,26 @@ export async function getOrCreateThreadRTDB(rtdb, uidA, uidB) {
             if (meta?.otherUid === uidB) return threadId;
         }
     }
-    // create new thread
     const threadRef = push(ref(rtdb, "threads"));
     const threadId = threadRef.key;
+    const now = rtdbTs();
 
-    const now = serverTimestamp();
     await set(threadRef, {
         members: { [uidA]: true, [uidB]: true },
         updatedAt: now,
     });
 
     await update(ref(rtdb), {
-        [`userThreads/${uidA}/${threadId}`]: { otherUid: uidB, updatedAt: now },
-        [`userThreads/${uidB}/${threadId}`]: { otherUid: uidA, updatedAt: now },
+        [`userThreads/${uidA}/${threadId}`]: { otherUid: uidB, updatedAt: Date.now() },
+        [`userThreads/${uidB}/${threadId}`]: { otherUid: uidA, updatedAt: Date.now() },
     });
 
     return threadId;
 }
 
-/** Push a message and bump updatedAt */
 export async function sendMessageRTDB(rtdb, threadId, { text, senderId }) {
     const msgRef = push(ref(rtdb, `messages/${threadId}`));
-    const now = serverTimestamp();
+    const now = rtdbTs();
     await set(msgRef, {
         text,
         senderId,
@@ -45,13 +42,10 @@ export async function sendMessageRTDB(rtdb, threadId, { text, senderId }) {
     });
     await update(ref(rtdb), {
         [`threads/${threadId}/updatedAt`]: now,
-        // userThreads updatedAt will be read for both members; we can update both,
-        // but we don't know both IDs here—callers can pass also otherUid if needed.
     });
     return msgRef.key;
 }
 
-/** Mark message read for a user */
 export async function markReadRTDB(rtdb, threadId, msgId, uid) {
     await set(ref(rtdb, `messages/${threadId}/${msgId}/readBy/${uid}`), true);
 }

@@ -12,7 +12,7 @@ import Card from "../Shared/Card.jsx";
 import Badge from "../Shared/Badge.jsx";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { getOrCreateThread } from "../../utils/chatRTDB.js";
+import { getOrCreateThreadRTDB } from "../../utils/chatRTDB.js";
 
 export default function IssuesTable() {
   const [rows, setRows] = useState([]);
@@ -53,8 +53,16 @@ export default function IssuesTable() {
     await updateDoc(doc(db, "requests", id), patch);
   };
 
+  const approveSlot = async (r) => {
+    if (!r.preferredDate || !r.preferredTime) return;
+    await updateDoc(doc(db, "requests", r.id), {
+      status: "scheduled",
+      scheduledAt: new Date(),
+    });
+  };
+
   const openChat = async (tenantUid) => {
-    const threadId = await getOrCreateThread(rtdb, user.uid, tenantUid);
+    const threadId = await getOrCreateThreadRTDB(rtdb, user.uid, tenantUid);
     nav(`/chat?thread=${threadId}`);
   };
 
@@ -168,6 +176,18 @@ export default function IssuesTable() {
                         </button>
                       )
                     )}
+                    <button
+                      onClick={() => approveSlot(r)}
+                      className="px-2 py-1 text-xs rounded border"
+                      disabled={
+                        !r.preferredDate ||
+                        !r.preferredTime ||
+                        r.status === "scheduled" ||
+                        r.status === "completed"
+                      }
+                    >
+                      Approve Slot
+                    </button>
                     <button
                       onClick={() => openChat(r.uid)}
                       className="px-2 py-1 text-xs rounded border"

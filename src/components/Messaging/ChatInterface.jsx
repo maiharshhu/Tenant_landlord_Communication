@@ -14,24 +14,22 @@ import Card from "../Shared/Card.jsx";
 import Button from "../Shared/Button.jsx";
 import MessageBubble from "./MessageBubble.jsx";
 import Threads from "./Threads.jsx";
-import { getOrCreateThreadRTDB, markReadRTDB } from "../../utils/chatRTDB.js";
+import { markReadRTDB } from "../../utils/chatRTDB.js";
 
 export default function ChatInterface() {
   const { user } = useAuth();
   const [activeThread, setActiveThread] = useState(null);
   const [otherUid, setOtherUid] = useState(null);
-  const [messages, setMessages] = useState([]); // {id, text, senderId, createdAt, readBy}
+  const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const endRef = useRef(null);
 
-  // open thread from URL param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const th = params.get("thread");
     if (th) setActiveThread(th);
   }, []);
 
-  // resolve otherUid from userThreads mapping
   useEffect(() => {
     if (!user || !activeThread) return setOtherUid(null);
     get(child(ref(rtdb), `userThreads/${user.uid}/${activeThread}`)).then(
@@ -41,7 +39,6 @@ export default function ChatInterface() {
     );
   }, [user, activeThread]);
 
-  // subscribe messages
   useEffect(() => {
     if (!activeThread) {
       setMessages([]);
@@ -57,7 +54,6 @@ export default function ChatInterface() {
         () => endRef.current?.scrollIntoView({ behavior: "smooth" }),
         30
       );
-      // mark read if not mine
       if (user && m.senderId !== user.uid) {
         markReadRTDB(rtdb, activeThread, m.id, user.uid);
       }
@@ -70,18 +66,10 @@ export default function ChatInterface() {
     if (!text.trim() || !user || !activeThread) return;
     const now = serverTimestamp();
     const newMsgRef = ref(rtdb, `messages/${activeThread}`);
-    const messageKey = (await import("firebase/database")).push(newMsgRef).key;
-    // write message + update updatedAt + userThreads updatedAt for both users
-    const updates = {};
-    updates[`messages/${activeThread}/${messageKey}`] = {
-      text: text.trim(),
-      senderId: user.uid,
-      createdAt: now,
-      readBy: { [user.uid]: true },
-    };
-    updates[`threads/${activeThread}/updatedAt`] = now;
+    const pushApi = await import("firebase/database");
+    const messageKey = pushApi.push(newMsgRef).key;
 
-    // figure out the other member from mapping
+    // find other uid
     let other = otherUid;
     if (!other) {
       const mapSnap = await get(
@@ -90,6 +78,15 @@ export default function ChatInterface() {
       other = mapSnap.val()?.otherUid || null;
       setOtherUid(other);
     }
+
+    const updates = {};
+    updates[`messages/${activeThread}/${messageKey}`] = {
+      text: text.trim(),
+      senderId: user.uid,
+      createdAt: now,
+      readBy: { [user.uid]: true },
+    };
+    updates[`threads/${activeThread}/updatedAt`] = now;
     updates[`userThreads/${user.uid}/${activeThread}/updatedAt`] = Date.now();
     if (other)
       updates[`userThreads/${other}/${activeThread}/updatedAt`] = Date.now();
@@ -98,33 +95,19 @@ export default function ChatInterface() {
     setText("");
   };
 
-  const startNewWith = async () => {
-    const other = prompt("Enter other user UID:");
-    if (!other || !user) return;
-    const { getOrCreateThreadRTDB: create } = await import(
-      "../../utils/chatRTDB.js"
-    );
-    const tid = await create(rtdb, user.uid, other);
-    setActiveThread(tid);
-    setOtherUid(other);
-    const url = new URL(window.location.href);
-    url.searchParams.set("thread", tid);
-    window.history.replaceState({}, "", url.toString());
-  };
-
   const statusFor = (m) => {
-    const read = m.readBy && Object.keys(m.readBy).length > 1;
-    const sent = !!m.createdAt;
-    return read ? "read" : sent ? "sent" : "…";
+    const createdResolved = typeof m.createdAt === "number";
+    const readers = m.readBy ? Object.keys(m.readBy) : [];
+    const read = readers.length > 1; // sender + recipient
+    if (read) return "read";
+    if (createdResolved) return "delivered";
+    return "sent";
   };
 
   return (
     <Card className="grid md:grid-cols-3 gap-3">
       <div className="md:col-span-1">
         <Threads onOpen={setActiveThread} />
-        <button className="mt-3 text-sm underline" onClick={startNewWith}>
-          New chat…
-        </button>
       </div>
       <div className="md:col-span-2 flex flex-col h-[420px]">
         <div className="font-semibold mb-2">
@@ -139,7 +122,7 @@ export default function ChatInterface() {
               time={
                 typeof m.createdAt === "number"
                   ? new Date(m.createdAt).toLocaleTimeString()
-                  : "" /* serverTimestamp will be resolved for subsequent reads */
+                  : ""
               }
               status={statusFor(m)}
             />
@@ -149,9 +132,7 @@ export default function ChatInterface() {
         <div className="flex gap-2 mt-2">
           <input
             className="flex-1 border rounded-xl px-3 py-2"
-            placeholder={
-              activeThread ? "Type a message" : "Select or create a thread"
-            }
+            placeholder={activeThread ? "Type a message" : "Select a thread"}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}

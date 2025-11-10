@@ -1,7 +1,19 @@
+// Firebase core
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getDatabase } from "firebase/database"
+
+// Firestore (with persistent cache + long polling for tough networks)
+import {
+    initializeFirestore,
+    persistentLocalCache,
+    persistentSingleTabManager,
+} from "firebase/firestore";
+
+// Realtime Database (RTDB) for chat + roles
+import { getDatabase } from "firebase/database";
+
+// Storage for uploads (images/videos, avatars)
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -10,9 +22,17 @@ const firebaseConfig = {
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
+export const storage = getStorage(app);
+
+export const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() }),
+    experimentalAutoDetectLongPolling: true,
+    // experimentalForceLongPolling: true, // uncomment if still blocked
+});

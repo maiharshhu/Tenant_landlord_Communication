@@ -25,23 +25,15 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null); // "tenant" | "landlord" | null
   const [loading, setLoading] = useState(true);
 
-  // Prefer RTDB for role; fallback to Firestore; never crash UI if offline.
   const loadRole = async (uid) => {
-    // 1) Try RTDB
     try {
       const rsnap = await rtdbGet(dbRef(rtdb, `users/${uid}/role`));
       if (rsnap.exists()) return rsnap.val();
-    } catch {
-      // ignore — move to Firestore fallback
-    }
-
-    // 2) Firestore fallback
+    } catch {}
     try {
       const fsSnap = await getDoc(doc(db, "users", uid));
       if (fsSnap.exists()) return fsSnap.data()?.role ?? null;
-    } catch {
-      // ignore offline errors
-    }
+    } catch {}
     return null;
   };
 
@@ -57,13 +49,11 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signIn = (email, password) =>
     signInWithEmailAndPassword(auth, email, password);
 
-  // Signup: write role to RTDB (primary) + Firestore (best-effort)
   const signUp = async (name, email, password, roleSelected = "tenant") => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     if (name) await updateProfile(cred.user, { displayName: name });
@@ -77,7 +67,7 @@ export function AuthProvider({ children }) {
       createdAt: Date.now(),
     });
 
-    // Firestore (optional mirror; ignore offline failures)
+    // Firestore mirror (best-effort)
     try {
       await setDoc(doc(db, "users", cred.user.uid), {
         uid: cred.user.uid,
@@ -94,18 +84,22 @@ export function AuthProvider({ children }) {
 
   const logOut = () => signOut(auth);
 
-  const value = {
-    user,
-    role,
-    isTenant: role === "tenant",
-    isLandlord: role === "landlord",
-    loading,
-    signIn,
-    signUp,
-    logOut,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        role,
+        isTenant: role === "tenant",
+        isLandlord: role === "landlord",
+        loading,
+        signIn,
+        signUp,
+        logOut,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

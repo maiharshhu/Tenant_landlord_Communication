@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 
 export default function Threads({ onOpen }) {
   const { user } = useAuth();
-  const [threads, setThreads] = useState([]); // [{id, otherUid, updatedAt}]
+  const [threads, setThreads] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -17,7 +17,6 @@ export default function Threads({ onOpen }) {
         otherUid: v.otherUid,
         updatedAt: v.updatedAt || 0,
       }));
-      // ensure updatedAt from threads if missing
       Promise.all(
         arr.map(async (t) => {
           if (t.updatedAt) return t;
@@ -33,29 +32,17 @@ export default function Threads({ onOpen }) {
     return () => off(listRef, "value", handler);
   }, [user]);
 
-  const open = (id) => onOpen?.(id);
-
-  const newThreadPrompt = async () => {
-    const other = prompt("Enter other user UID:");
-    if (!other) return;
-    // App-level util will create; we open from Landlord IssuesTable usually.
-    alert("Use 'Chat' button from issues list to auto-create threads. 👍");
-  };
-
   return (
     <div className="border rounded-2xl p-3">
       <div className="flex items-center justify-between mb-2">
         <div className="font-semibold">Threads</div>
-        <button className="text-sm underline" onClick={newThreadPrompt}>
-          New
-        </button>
       </div>
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {threads.map((t) => (
           <div
             key={t.id}
             className="p-2 border rounded-xl cursor-pointer hover:bg-gray-50"
-            onClick={() => open(t.id)}
+            onClick={() => onOpen?.(t.id)}
           >
             <div className="text-sm">Other: {t.otherUid}</div>
             <div className="text-xs text-gray-500">
